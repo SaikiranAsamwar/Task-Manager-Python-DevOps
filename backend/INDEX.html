@@ -143,6 +143,53 @@
             font-size: 1.2em;
             margin-right: 8px;
         }
+        .styled-list {
+            margin-left: 20px;
+            line-height: 2;
+        }
+        .styled-list-alt {
+            margin-left: 20px;
+            line-height: 1.8;
+            color: #333;
+        }
+        .inline-code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+        }
+        .method-badge {
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+        .method-get {
+            background: #e3f2fd;
+        }
+        .method-post {
+            background: #c8e6c9;
+        }
+        .method-put {
+            background: #fff9c4;
+        }
+        .method-delete {
+            background: #ffcdd2;
+        }
+        .text-center-section {
+            text-align: center;
+            border-left: none;
+        }
+        .large-text {
+            font-size: 1.2em;
+        }
+        .text-muted {
+            color: #999;
+            margin-top: 15px;
+        }
+        .text-small-muted {
+            color: #999;
+            font-size: 0.9em;
+        }
+        .spaced-top {
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -153,10 +200,10 @@
         <!-- Quick Start Section -->
         <div class="section">
             <h2><span class="emoji">⚡</span>Quick Start (3 Steps)</h2>
-            <ol style="margin-left: 20px; line-height: 2;">
-                <li><strong>Install dependencies:</strong> <code style="background: #f0f0f0; padding: 2px 6px;">pip install -r requirements.txt</code></li>
-                <li><strong>Run the app:</strong> <code style="background: #f0f0f0; padding: 2px 6px;">python run.py</code></li>
-                <li><strong>Open browser:</strong> <code style="background: #f0f0f0; padding: 2px 6px;">http://localhost:5000</code></li>
+            <ol class="styled-list">
+                <li><strong>Install dependencies:</strong> <code class="inline-code">pip install -r requirements.txt</code></li>
+                <li><strong>Run the app:</strong> <code class="inline-code">python run.py</code></li>
+                <li><strong>Open browser:</strong> <code class="inline-code">http://localhost:5000</code></li>
             </ol>
         </div>
 
@@ -272,27 +319,27 @@ backend/<br>
                     <th>Description</th>
                 </tr>
                 <tr>
-                    <td><span style="background: #e3f2fd; padding: 3px 8px; border-radius: 3px;">GET</span></td>
+                    <td><span class="method-badge method-get">GET</span></td>
                     <td>/users</td>
                     <td>Get all users</td>
                 </tr>
                 <tr>
-                    <td><span style="background: #e3f2fd; padding: 3px 8px; border-radius: 3px;">GET</span></td>
+                    <td><span class="method-badge method-get">GET</span></td>
                     <td>/users/{id}</td>
                     <td>Get specific user</td>
                 </tr>
                 <tr>
-                    <td><span style="background: #c8e6c9; padding: 3px 8px; border-radius: 3px;">POST</span></td>
+                    <td><span class="method-badge method-post">POST</span></td>
                     <td>/users</td>
                     <td>Create new user</td>
                 </tr>
                 <tr>
-                    <td><span style="background: #fff9c4; padding: 3px 8px; border-radius: 3px;">PUT</span></td>
+                    <td><span class="method-badge method-put">PUT</span></td>
                     <td>/users/{id}</td>
                     <td>Update user</td>
                 </tr>
                 <tr>
-                    <td><span style="background: #ffcdd2; padding: 3px 8px; border-radius: 3px;">DELETE</span></td>
+                    <td><span class="method-badge method-delete">DELETE</span></td>
                     <td>/users/{id}</td>
                     <td>Delete user</td>
                 </tr>
@@ -362,7 +409,7 @@ backend/<br>
         <div class="section">
             <h2><span class="emoji">📚</span>Documentation Files</h2>
             <p>Read these files in order:</p>
-            <ol style="margin-left: 20px; line-height: 1.8; color: #333;">
+            <ol class="styled-list-alt">
                 <li><strong>QUICK_START.md</strong> - Setup and first run (5 minutes)</li>
                 <li><strong>PROJECT_OVERVIEW.md</strong> - Project summary and learning guide (15 minutes)</li>
                 <li><strong>README.md</strong> - Complete documentation with API details (30 minutes)</li>
@@ -400,13 +447,13 @@ backend/<br>
         <div class="section">
             <h2><span class="emoji">🔧</span>Troubleshooting</h2>
             <p><strong>Port 5000 in use?</strong></p>
-            <p>Edit <code style="background: #f0f0f0; padding: 2px 6px;">run.py</code> and change port to 5001</p>
+            <p>Edit <code class="inline-code">run.py</code> and change port to 5001</p>
             
-            <p style="margin-top: 15px;"><strong>Dependencies missing?</strong></p>
-            <p>Run: <code style="background: #f0f0f0; padding: 2px 6px;">pip install -r requirements.txt</code></p>
+            <p class="spaced-top"><strong>Dependencies missing?</strong></p>
+            <p>Run: <code class="inline-code">pip install -r requirements.txt</code></p>
             
-            <p style="margin-top: 15px;"><strong>Database corrupted?</strong></p>
-            <p>Delete <code style="background: #f0f0f0; padding: 2px 6px;">app.db</code> and restart app</p>
+            <p class="spaced-top"><strong>Database corrupted?</strong></p>
+            <p>Delete <code class="inline-code">app.db</code> and restart app</p>
         </div>
 
         <!-- Next Steps -->
@@ -425,10 +472,10 @@ backend/<br>
         </div>
 
         <!-- Footer -->
-        <div class="section" style="text-align: center; border-left: none;">
-            <p style="font-size: 1.2em;">🎉 <strong>You now have a complete full-stack web application!</strong></p>
-            <p style="color: #999; margin-top: 15px;">Built with Flask, SQLAlchemy, and vanilla JavaScript</p>
-            <p style="color: #999; font-size: 0.9em;">Production-ready code with professional architecture</p>
+        <div class="section text-center-section">
+            <p class="large-text">🎉 <strong>You now have a complete full-stack web application!</strong></p>
+            <p class="text-muted">Built with Flask, SQLAlchemy, and vanilla JavaScript</p>
+            <p class="text-small-muted">Production-ready code with professional architecture</p>
         </div>
     </div>
 </body>
