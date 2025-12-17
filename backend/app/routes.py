@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, render_template
 from app import db
-from app.models import User, Task
+from app.models import User, Task, Notification
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 
@@ -31,6 +31,18 @@ def register():
 def dashboard():
     """Serve the dashboard page"""
     return render_template('dashboard.html')
+
+
+@main_bp.route('/lead-dashboard')
+def lead_dashboard():
+    """Serve the team lead dashboard page"""
+    return render_template('lead-dashboard.html')
+
+
+@main_bp.route('/member-dashboard')
+def member_dashboard():
+    """Serve the team member dashboard page"""
+    return render_template('member-dashboard.html')
 
 
 @main_bp.route('/users')
@@ -111,7 +123,8 @@ def create_user():
         user = User(
             username=data['username'],
             email=data['email'],
-            full_name=data['full_name']
+            full_name=data['full_name'],
+            role=data.get('role', 'member')  # Default to member
         )
         db.session.add(user)
         db.session.commit()
@@ -260,6 +273,209 @@ def delete_task(task_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+# API Routes - Authentication
+@api_bp.route('/auth/login', methods=['POST'])
+def login_user():
+    """Authenticate user and return user info"""
+    data = request.get_json()
+    
+    if not data or not all(k in data for k in ('username', 'role')):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Check if user exists
+    user = User.query.filter_by(username=data['username'], role=data['role']).first()
+    
+    if not user:
+        # Create new user if doesn't exist
+        try:
+            user = User(
+                username=data['username'],
+                email=data.get('email', f"{data['username']}@example.com"),
+                full_name=data.get('full_name', data['username']),
+                role=data['role']
+            )
+            db.session.add(user)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+    
+    return jsonify({
+        'message': 'Login successful',
+        'user': user.to_dict()
+    }), 200
+
+
+# API Routes - Task Assignment (Team Lead only)
+@api_bp.route('/tasks/assign', methods=['POST'])
+def assign_task():
+    """Assign a task to a team member"""
+    data = request.get_json()
+    
+    if not data or not all(k in data for k in ('title', 'assigned_to', 'assigned_by')):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Verify assigner is a team lead
+    assigner = User.query.get(data['assigned_by'])
+    if not assigner or assigner.role != 'lead':
+        return jsonify({'error': 'Only team leads can assign tasks'}), 403
+    
+    # Verify assignee exists
+    assignee = User.query.get(data['assigned_to'])
+    if not assignee:
+        return jsonify({'error': 'Assignee not found'}), 404
+    
+    try:
+        task = Task(
+            user_id=data['assigned_by'],
+            assigned_to=data['assigned_to'],
+            assigned_by=data['assigned_by'],
+            title=data['title'],
+            description=data.get('description'),
+            priority=data.get('priority', 'medium'),
+            status='pending',
+            due_date=datetime.fromisoformat(data['due_date']) if 'due_date' in data else None
+        )
+        db.session.add(task)
+        
+        # Create notification for assignee
+        notification = Notification(
+            user_id=data['assigned_to'],
+            task_id=task.id,
+            message=f"New task assigned: {task.title}"
+        )
+        db.session.add(notification)
+        
+        db.session.commit()
+        return jsonify(task.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# API Routes - Task Completion (Team Member)
+@api_bp.route('/tasks/<int:task_id>/complete', methods=['PUT'])
+def complete_task(task_id):
+    """Mark task as completed and upload result"""
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    data = request.get_json()
+    
+    try:
+        task.completed = True
+        task.status = 'completed'
+        task.result = data.get('result', '')
+        task.completed_at = datetime.utcnow()
+        
+        # Notify team lead
+        if task.assigned_by:
+            notification = Notification(
+                user_id=task.assigned_by,
+                task_id=task.id,
+                message=f"Task '{task.title}' has been completed by team member"
+            )
+            db.session.add(notification)
+        
+        db.session.commit()
+        return jsonify(task.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# API Routes - Task Approval (Team Lead)
+@api_bp.route('/tasks/<int:task_id>/approve', methods=['PUT'])
+def approve_task(task_id):
+    """Approve a completed task"""
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    # Verify user is team lead
+    user = User.query.get(user_id)
+    if not user or user.role != 'lead':
+        return jsonify({'error': 'Only team leads can approve tasks'}), 403
+    
+    try:
+        task.approved = True
+        task.status = 'approved'
+        
+        # Notify team member
+        if task.assigned_to:
+            notification = Notification(
+                user_id=task.assigned_to,
+                task_id=task.id,
+                message=f"Task '{task.title}' has been approved"
+            )
+            db.session.add(notification)
+        
+        db.session.commit()
+        return jsonify(task.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# API Routes - Get Tasks by Assignment
+@api_bp.route('/tasks/assigned', methods=['GET'])
+def get_assigned_tasks():
+    """Get tasks assigned to a specific user"""
+    user_id = request.args.get('user_id', type=int)
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    tasks = Task.query.filter_by(assigned_to=user_id).all()
+    return jsonify([task.to_dict() for task in tasks]), 200
+
+
+@api_bp.route('/tasks/created', methods=['GET'])
+def get_created_tasks():
+    """Get tasks created by a specific user (team lead)"""
+    user_id = request.args.get('user_id', type=int)
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    tasks = Task.query.filter_by(assigned_by=user_id).all()
+    return jsonify([task.to_dict() for task in tasks]), 200
+
+
+# API Routes - Notifications
+@api_bp.route('/notifications/<int:user_id>', methods=['GET'])
+def get_notifications(user_id):
+    """Get all notifications for a user"""
+    notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
+    return jsonify([notif.to_dict() for notif in notifications]), 200
+
+
+@api_bp.route('/notifications/<int:notification_id>/read', methods=['PUT'])
+def mark_notification_read(notification_id):
+    """Mark a notification as read"""
+    notification = Notification.query.get(notification_id)
+    if not notification:
+        return jsonify({'error': 'Notification not found'}), 404
+    
+    try:
+        notification.read = True
+        db.session.commit()
+        return jsonify(notification.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# API Routes - Team Members (Team Lead view)
+@api_bp.route('/users/members', methods=['GET'])
+def get_team_members():
+    """Get all team members"""
+    members = User.query.filter_by(role='member').all()
+    return jsonify([member.to_dict() for member in members]), 200
 
 
 # Health check endpoint

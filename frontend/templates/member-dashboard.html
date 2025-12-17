@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Team Member Dashboard - Task Manager</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <h1 class="logo">📋 Task Manager - Team Member</h1>
+        <ul class="nav-links">
+          <li><a href="/member-dashboard" class="active">My Tasks</a></li>
+          <li>
+            <a href="#" id="notificationsLink">
+              Notifications
+              <span
+                id="notificationBadge"
+                class="notification-badge"
+                style="display: none"
+                >0</span
+              >
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="logout()" class="logout-link">🚪 Logout</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Dashboard Header -->
+      <div class="page-header">
+        <h1>My Tasks</h1>
+        <p id="welcomeMessage">Welcome back, Team Member!</p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📝</div>
+          <div class="stat-content">
+            <h3>Assigned Tasks</h3>
+            <p class="stat-number" id="totalTasks">0</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-content">
+            <h3>Pending</h3>
+            <p class="stat-number" id="pendingTasks">0</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔄</div>
+          <div class="stat-content">
+            <h3>In Progress</h3>
+            <p class="stat-number" id="inProgressTasks">0</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-content">
+            <h3>Completed</h3>
+            <p class="stat-number" id="completedTasks">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section Tabs -->
+      <div class="section-tabs">
+        <button class="tab-btn active" onclick="showTab('myTasks')">
+          My Tasks
+        </button>
+        <button class="tab-btn" onclick="showTab('notifications')">
+          Notifications
+        </button>
+      </div>
+
+      <!-- My Tasks Tab -->
+      <div id="myTasksTab" class="tab-content active">
+        <h2 class="section-subtitle">Assigned Tasks</h2>
+        <div id="tasksContainer">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <p>Loading your tasks...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications Tab -->
+      <div id="notificationsTab" class="tab-content">
+        <h2 class="section-subtitle">Notifications</h2>
+        <div id="notificationsList">
+          <p class="table-loading">Loading notifications...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Complete Task Modal -->
+    <div id="completeTaskModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Complete Task</h2>
+          <button class="close-btn" onclick="closeCompleteTaskModal()">
+            &times;
+          </button>
+        </div>
+        <form id="completeTaskForm">
+          <input type="hidden" id="completeTaskId" />
+          <div class="form-group">
+            <label for="taskResult">Task Result / Notes</label>
+            <textarea
+              id="taskResult"
+              placeholder="Enter task results, notes, or any relevant information..."
+              required
+            ></textarea>
+          </div>
+          <button type="submit" class="btn-primary form-submit-full">
+            Submit Task
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- View Task Details Modal -->
+    <div id="viewTaskModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Task Details</h2>
+          <button class="close-btn" onclick="closeViewTaskModal()">
+            &times;
+          </button>
+        </div>
+        <div id="taskDetailsContent">
+          <!-- Task details will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/member-dashboard.js') }}"></script>
+  </body>
+</html>

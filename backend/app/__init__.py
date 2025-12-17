@@ -17,11 +17,12 @@ db = SQLAlchemy()
 
 def create_app():
     """Application factory function"""
-    # Set paths for templates and static files - look in parent directory
+    # Set paths for templates and static files - look in frontend directory
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    parent_dir = os.path.dirname(base_dir)
-    template_dir = os.path.join(parent_dir, 'templates')
-    static_dir = os.path.join(parent_dir, 'static')
+    backend_dir = os.path.dirname(base_dir)
+    project_root = os.path.dirname(backend_dir)
+    template_dir = os.path.join(project_root, 'frontend', 'templates')
+    static_dir = os.path.join(project_root, 'frontend')
     
     # Create directories if they don't exist
     if not os.path.exists(template_dir):
@@ -31,13 +32,14 @@ def create_app():
     
     app = Flask(__name__, 
                 template_folder=template_dir,
-                static_url_path='/',
+                static_url_path='/static',
                 static_folder=static_dir)
     
     # Configure the app
+    db_path = os.path.join(backend_dir, 'app.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
         'DATABASE_URL',
-        'sqlite:///app.db'
+        f'sqlite:///{db_path}'
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JSON_SORT_KEYS'] = False
