@@ -20,7 +20,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY default.conf /etc/nginx/conf.d/default.conf
 
 # Copy frontend files from builder stage
-COPY --from=builder /app/templates /usr/share/nginx/html
+COPY --from=builder /app/templates /usr/share/nginx/html/templates
 COPY --from=builder /app/css /usr/share/nginx/html/css
 COPY --from=builder /app/js /usr/share/nginx/html/js
 

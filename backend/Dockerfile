@@ -5,13 +5,20 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy requirements file
-COPY requirements.txt .
+COPY backend/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the entire backend application
-COPY . .
+COPY backend/ .
+
+# Copy frontend templates to backend templates directory
+COPY frontend/templates ./templates
+
+# Copy frontend static assets (CSS, JS) to backend static directory
+COPY frontend/css ./static/css
+COPY frontend/js ./static/js
 
 # Expose port 5000
 EXPOSE 5000

@@ -17,15 +17,22 @@ db = SQLAlchemy()
 
 def create_app():
     """Application factory function"""
-    # Set paths for separated frontend directory
+    # Set paths for templates and static files - look in parent directory
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    frontend_dir = os.path.abspath(os.path.join(base_dir, '../../frontend'))
-    template_dir = os.path.join(frontend_dir, 'templates')
+    parent_dir = os.path.dirname(base_dir)
+    template_dir = os.path.join(parent_dir, 'templates')
+    static_dir = os.path.join(parent_dir, 'static')
+    
+    # Create directories if they don't exist
+    if not os.path.exists(template_dir):
+        os.makedirs(template_dir, exist_ok=True)
+    if not os.path.exists(static_dir):
+        os.makedirs(static_dir, exist_ok=True)
     
     app = Flask(__name__, 
                 template_folder=template_dir,
-                static_folder=frontend_dir,
-                static_url_path='/static')
+                static_url_path='/',
+                static_folder=static_dir)
     
     # Configure the app
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
