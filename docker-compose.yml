@@ -8,60 +8,47 @@ services:
       POSTGRES_PASSWORD: devops_password
       POSTGRES_DB: devops_db
     ports:
-      - "0.0.0.0:5432:5432"
+      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U devops_user" ]
+      test: ["CMD-SHELL", "pg_isready -U devops_user"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - devops_network
+    restart: unless-stopped
 
-  # Backend Service
-  backend:
-    image: saikiranasamwar4/task-manager-backend:latest
+  # Application Service (Backend + Frontend)
+  app:
+    image: saikiranasamwar4/task-manager:latest
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: devops-backend
+    container_name: devops-app
     environment:
       FLASK_ENV: production
       DATABASE_URL: postgresql://devops_user:devops_password@db:5432/devops_db
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
     ports:
-      - "0.0.0.0:5000:5000"
+      - "5000:5000"
     depends_on:
       db:
         condition: service_healthy
     networks:
       - devops_network
-
-  # Frontend Service (Nginx)
-  frontend:
-    image: saikiranasamwar4/task-manager-frontend:latest
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: devops-frontend
-    ports:
-      - "0.0.0.0:80:80"
-      - "0.0.0.0:443:443"
-    environment:
-      API_URL: http://backend:5000
-    depends_on:
-      - backend
+    restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - devops_network
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   db_data:
-
+    driver: local
 
 networks:
   devops_network:

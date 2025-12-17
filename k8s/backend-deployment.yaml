@@ -1,37 +1,45 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: app
   namespace: task-manager
   labels:
-    app: backend
+    app: task-manager
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: backend
+      app: task-manager
   template:
     metadata:
       labels:
-        app: backend
+        app: task-manager
     spec:
+      initContainers:
+      - name: wait-for-db
+        image: postgres:15-alpine
+        command: ['sh', '-c', 'until pg_isready -h postgres -p 5432; do echo waiting for database; sleep 2; done;']
       containers:
-      - name: backend
-        image: saikiranasamwar4/task-manager-backend:latest
+      - name: app
+        image: saikiranasamwar4/task-manager:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
           name: http
+          protocol: TCP
         env:
         - name: FLASK_ENV
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: FLASK_ENV
+          value: "production"
         - name: DATABASE_URL
           valueFrom:
-            configMapKeyRef:
-              name: app-config
+            secretKeyRef:
+              name: app-secrets
               key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: SECRET_KEY
         resources:
           requests:
             memory: "256Mi"
@@ -43,8 +51,10 @@ spec:
           httpGet:
             path: /
             port: 5000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 40
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /
@@ -55,15 +65,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-service
+  name: app-service
   namespace: task-manager
   labels:
-    app: backend
+    app: task-manager
 spec:
   type: ClusterIP
   ports:
   - port: 5000
     targetPort: 5000
     protocol: TCP
+    name: http
   selector:
-    app: backend
+    app: task-manager

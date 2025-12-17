@@ -21,13 +21,9 @@ pipeline {
         // Docker Hub repository/organization name
         DOCKER_HUB_REPO = 'saikiranasamwar4'
         
-        // Complete Docker image name for backend application
+        // Complete Docker image name for application (backend + frontend)
         // Format: repository/image-name
-        BACKEND_IMAGE = "${DOCKER_HUB_REPO}/task-manager-backend"
-        
-        // Complete Docker image name for frontend application
-        // Format: repository/image-name
-        FRONTEND_IMAGE = "${DOCKER_HUB_REPO}/task-manager-frontend"
+        APP_IMAGE = "${DOCKER_HUB_REPO}/task-manager"
         
         // Docker image tag using Jenkins build number for versioning
         // Each build gets a unique tag (1, 2, 3, etc.)
@@ -62,42 +58,22 @@ pipeline {
         }
         
         // =================================================================
-        // STAGE 2: BUILD BACKEND DOCKER IMAGE
+        // STAGE 2: BUILD APPLICATION DOCKER IMAGE
         // =================================================================
-        // Purpose: Create Docker container image for Flask backend
+        // Purpose: Create Docker container image for the application
         // =================================================================
-        stage('Build Backend Image') {
+        stage('Build Application Image') {
             steps {
                 // Display status message
-                echo 'Building backend image...'
+                echo 'Building application image...'
                 
                 // Build Docker image using shell command
                 // docker build: Docker command to build images
-                // -t ${BACKEND_IMAGE}:${IMAGE_TAG}: Tag image with build number
-                // -t ${BACKEND_IMAGE}:latest: Also tag as 'latest' for easy reference
+                // -t ${APP_IMAGE}:${IMAGE_TAG}: Tag image with build number
+                // -t ${APP_IMAGE}:latest: Also tag as 'latest' for easy reference
                 // -f backend/Dockerfile: Specify Dockerfile location
-                // . : Build context is current directory (workspace root)
-                sh "docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} -t ${BACKEND_IMAGE}:latest -f backend/Dockerfile ."
-            }
-        }
-        
-        // =================================================================
-        // STAGE 3: BUILD FRONTEND DOCKER IMAGE
-        // =================================================================
-        // Purpose: Create Docker container image for Nginx frontend
-        // =================================================================
-        stage('Build Frontend Image') {
-            steps {
-                // Display status message
-                echo 'Building frontend image...'
-                
-                // Build Docker image for frontend application
-                // docker build: Docker command to build images
-                // -t ${FRONTEND_IMAGE}:${IMAGE_TAG}: Tag with build number
-                // -t ${FRONTEND_IMAGE}:latest: Tag as 'latest'
-                // -f frontend/Dockerfile: Dockerfile in frontend directory
-                // ./frontend: Build context is frontend directory
-                sh "docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} -t ${FRONTEND_IMAGE}:latest -f frontend/Dockerfile ./frontend"
+                // . : Build context is project root (to access both backend and frontend)
+                sh "docker build -t ${APP_IMAGE}:${IMAGE_TAG} -t ${APP_IMAGE}:latest -f backend/Dockerfile ."
             }
         }
         
@@ -140,21 +116,13 @@ pipeline {
             }
         }
         
-        // =================================================================
-        // STAGE 5: DEPLOY TO KUBERNETES
-        // =================================================================
-        // Purpose: Deploy application to EKS/Kubernetes cluster
-        // =================================================================
-        stage('Deploy to Kubernetes') {
-            steps {
-                // Display status message
-                echo 'Deploying to Kubernetes...'
-                
-                // Execute multi-line shell script for Kubernetes deployment
-                // Single quotes preserve variable expansion for Jenkins vars
-                sh '''
-                    # Export kubeconfig path for kubectl authentication
-                    # KUBECONFIG tells kubectl which cluster to connect to
+        // =====================application image with build number tag
+                        // This creates a versioned image for rollback capability
+                        docker push ${APP_IMAGE}:${IMAGE_TAG}
+                        
+                        // Push application image with 'latest' tag
+                        // 'latest' always points to most recent build
+                        docker push ${APP which cluster to connect to
                     export KUBECONFIG=${KUBECONFIG}
                     
                     # Apply namespace manifest
