@@ -1,5 +1,5 @@
 # Build stage
-FROM nginx:alpine as builder
+FROM nginx:alpine AS builder
 
 WORKDIR /build
 COPY . .

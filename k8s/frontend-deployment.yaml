@@ -13,18 +13,21 @@ spec:
       labels:
         app: frontend
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: frontend
-        image: saikiranasamwar4/taskmanager-frontend:latest
+        image: saikiranasamwar4/taskmanager-frontend:v1.0
         ports:
         - containerPort: 80
         resources:
           requests:
             memory: "128Mi"
             cpu: "100m"
+            ephemeral-storage: "512Mi"
           limits:
             memory: "256Mi"
             cpu: "200m"
+            ephemeral-storage: "1Gi"
 ---
 apiVersion: v1
 kind: Service

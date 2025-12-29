@@ -21,7 +21,7 @@ spec:
       serviceAccountName: prometheus
       containers:
       - name: prometheus
-        image: prom/prometheus:latest
+        image: prom/prometheus:v2.48.0
         args:
           - '--config.file=/etc/prometheus/prometheus.yml'
           - '--storage.tsdb.path=/prometheus'
@@ -38,9 +38,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "250m"
+            ephemeral-storage: "1Gi"
           limits:
             memory: "1Gi"
             cpu: "500m"
+            ephemeral-storage: "2Gi"
       volumes:
       - name: prometheus-config
         configMap:

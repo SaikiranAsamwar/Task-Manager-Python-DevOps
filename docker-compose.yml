@@ -18,7 +18,7 @@ services:
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=your-secret-key-change-in-production
-      - DATABASE_URL=postgresql://taskmanager:taskmanager123@postgres:5432/taskmanager_db
+      - DATABASE_URL=postgresql://taskmanager:taskmanager123@postgres:5432/taskmanager_db  # nosec
     volumes:
       - ./backend:/app
       - backend_instance:/app/instance

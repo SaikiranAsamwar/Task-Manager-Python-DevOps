@@ -13,9 +13,10 @@ spec:
       labels:
         app: grafana
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: grafana
-        image: grafana/grafana:latest
+        image: grafana/grafana:10.2.3
         ports:
         - containerPort: 3000
         env:
@@ -34,9 +35,11 @@ spec:
           requests:
             memory: "256Mi"
             cpu: "100m"
+            ephemeral-storage: "512Mi"
           limits:
             memory: "512Mi"
             cpu: "200m"
+            ephemeral-storage: "1Gi"
       volumes:
       - name: grafana-storage
         persistentVolumeClaim:
