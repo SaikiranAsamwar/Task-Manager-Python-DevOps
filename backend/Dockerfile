@@ -9,4 +9,5 @@ COPY . .
 
 EXPOSE 8888
 
-CMD ["python", "run.py"]
+# Use Gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:8888", "--workers", "4", "--timeout", "120", "run:app"]

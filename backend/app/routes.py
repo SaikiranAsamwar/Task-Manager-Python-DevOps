@@ -8,6 +8,24 @@ main_bp = Blueprint('main', __name__)
 api_bp = Blueprint('api', __name__)
 
 
+# Health check endpoints for Kubernetes
+@api_bp.route('/health', methods=['GET'])
+def health_check():
+    """Liveness probe - check if app is running"""
+    return jsonify({"status": "healthy"}), 200
+
+
+@api_bp.route('/ready', methods=['GET'])
+def readiness_check():
+    """Readiness probe - check if app can serve traffic"""
+    try:
+        # Check database connection
+        db.session.execute(db.text('SELECT 1'))
+        return jsonify({"status": "ready"}), 200
+    except Exception as e:
+        return jsonify({"status": "not ready", "error": str(e)}), 503
+
+
 # Main Routes (for serving HTML)
 @main_bp.route('/')
 def index():
