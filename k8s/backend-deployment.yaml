@@ -34,14 +34,14 @@ spec:
               key: database-url
         livenessProbe:
           httpGet:
-            path: /health
+            path: /api/health
             port: 8888
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /api/ready
             port: 8888
           initialDelaySeconds: 20
           periodSeconds: 5

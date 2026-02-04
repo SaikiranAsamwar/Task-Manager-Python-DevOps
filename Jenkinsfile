@@ -128,8 +128,8 @@ pipeline {
                 echo '========================================='
                 script {
                     sh '''
-                        echo "Starting containers with docker-compose..."
-                        docker-compose up -d
+                        echo "Starting containers with docker compose..."
+                        docker compose up -d
                         
                         echo "Waiting for services to be ready..."
                         sleep 30
@@ -141,7 +141,7 @@ pipeline {
                         curl -f http://localhost:8888 || exit 1
                         
                         echo "Stopping containers..."
-                        docker-compose down
+                        docker compose down
                         
                         echo "Docker test completed successfully!"
                     '''
