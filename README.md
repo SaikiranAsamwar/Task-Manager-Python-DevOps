@@ -1,21 +1,47 @@
-﻿# Task Manager (Flask + PostgreSQL) — DevOps Deployment Guide (Amazon Linux 2023)
+﻿# Task Manager — Production-Ready DevOps Project
 
-A full-stack Task Manager app with:
-- **Backend:** Flask API (Gunicorn) on **:8888**
-- **Frontend:** Static Nginx site on **:80** (reverse-proxies `/api/` to backend)
-- **Database:** PostgreSQL on **:5432**
-- **CI/CD:** Jenkins pipeline (Docker build/test/push + Kubernetes deploy)
-- **Monitoring:** Prometheus + Grafana (Kubernetes manifests)
+A **professional-grade** Flask + PostgreSQL task management application with complete CI/CD, Kubernetes orchestration, and monitoring. Designed for portfolio demonstration and real-world deployment scenarios.
 
-This README is written to be **copy/paste runnable** on **Amazon Linux 2023 (AL2023)** and follows best practices: verified installs, least privilege, minimal open ports, and sane secrets handling.
+## 🎯 Project Overview
+
+| Component | Technology | Port |
+|-----------|-----------|------|
+| **Backend API** | Flask + Gunicorn + SQLAlchemy | 8888 |
+| **Frontend** | Nginx (static + reverse proxy) | 80 |
+| **Database** | PostgreSQL 15 | 5432 |
+| **Orchestration** | Docker Compose / Kubernetes (EKS) | - |
+| **CI/CD** | Jenkins (declarative pipeline) | 8080 |
+| **Monitoring** | Prometheus + Grafana | 9090/3000 |
+| **Code Quality** | SonarQube | 9000 |
+
+## ✅ Deployment Readiness Status
+
+**Status:** ✅ **Production-Ready** (with configuration adjustments)
+
+- ✅ Dockerized backend and frontend with multi-stage builds
+- ✅ Kubernetes manifests with health checks, resource limits, and security contexts
+- ✅ CI/CD pipeline with automated build, test, and deployment
+- ✅ Monitoring stack with Prometheus and Grafana
+- ✅ Database persistence via PVCs
+- ⚠️ **Action Required:** Update secrets before production deployment (see [Security checklist](#11-security-and-best-practice-checklist))
+
+## 🚀 Quick Start Options
+
+Choose your deployment path:
+
+| Option | Best For | Time to Deploy | Complexity |
+|--------|----------|----------------|------------|
+| **[Local (Compose)](#5-quick-start-docker-compose)** | Testing, development | ~2 minutes | ⭐ Easy |
+| **[EC2 (Compose)](#6-ec2-deployment-amazon-linux-2023--docker-compose)** | Single-server production | ~15 minutes | ⭐⭐ Medium |
+| **[EKS (Kubernetes)](#7-kubernetes-deployment-eks-ready)** | Scalable production | ~30 minutes | ⭐⭐⭐ Advanced |
 
 ---
 
-## Table of contents
+## 📋 Table of Contents
 
 - [1. Architecture](#1-architecture)
 - [2. Ports and URLs](#2-ports-and-urls)
-- [3. What’s in this repo](#3-whats-in-this-repo)
+- [3. What's in this repo](#3-whats-in-this-repo)
 - [4. Prerequisites](#4-prerequisites)
 - [5. Quick start (Docker Compose)](#5-quick-start-docker-compose)
 - [6. EC2 deployment (Amazon Linux 2023 + Docker Compose)](#6-ec2-deployment-amazon-linux-2023--docker-compose)
@@ -124,19 +150,29 @@ docker compose down
 
 ## 6. EC2 deployment (Amazon Linux 2023 + Docker Compose)
 
-### 6.1 Launch EC2
+**Recommended for:** Single-server production deployments, portfolio demos, cost-effective hosting
 
-Recommended sizing for a clean demo:
-- AMI: Amazon Linux 2023
-- Instance type: `t3.medium` (or larger)
-- Disk: 30–50 GiB gp3
+**Estimated time:** 15-20 minutes
 
-Security Group (minimal):
-- Inbound `22/tcp` from your IP only
-- Inbound `80/tcp` from anywhere
+### 6.1 Launch EC2 Instance
 
-Best practice:
-- Do NOT open Jenkins/Grafana/Prometheus publicly; use SSH or `kubectl port-forward`.
+**Recommended Configuration:**
+- **AMI:** Amazon Linux 2023 (latest)
+- **Instance type:** `t3.medium` (2 vCPU, 4GB RAM) minimum
+  - For full stack + Jenkins + monitoring: `t3.large` or higher
+- **Storage:** 30–50 GiB gp3 SSD
+- **Key pair:** Create or use existing SSH key
+
+**Security Group Configuration:**
+
+| Type | Protocol | Port | Source | Purpose |
+|------|----------|------|--------|---------|
+| SSH | TCP | 22 | Your IP only | Secure access |
+| HTTP | TCP | 80 | 0.0.0.0/0 | Frontend access |
+
+**Security Best Practice:**
+- ⚠️ Do NOT open ports 8080 (Jenkins), 9000 (SonarQube), 9090 (Prometheus), or 3000 (Grafana) to the internet
+- Use SSH tunneling or `kubectl port-forward` for admin tools
 
 ### 6.2 SSH into the host
 
@@ -144,40 +180,70 @@ Best practice:
 ssh -i your-key.pem ec2-user@EC2_PUBLIC_IP
 ```
 
-### 6.3 Baseline OS setup
+### 6.3 System preparation and hardening
+
+**Update system packages:**
 
 ```bash
 sudo dnf -y update
 sudo dnf -y install git curl wget unzip jq ca-certificates openssl
 
-# time sync
+# Enable and start time synchronization (critical for distributed systems)
 sudo systemctl enable --now chronyd
 ```
 
-Optional SSH hardening (verify before locking yourself out):
+**Optional SSH hardening** (recommended for production):
 
 ```bash
+# Disable password authentication (ensure key-based auth works first!)
 sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo systemctl restart sshd
 ```
 
-### 6.4 Install Docker (AL2023) + enable service
+**Verify system readiness:**
 
 ```bash
-sudo dnf -y install docker
-sudo systemctl enable --now docker
+# Check timezone
+timedatectl
 
-# allow non-root docker usage
-sudo usermod -aG docker ec2-user
-newgrp docker
+# Check available disk space (need at least 10GB free)
+df -h
 
-docker --version
+# Check memory
+free -h
 ```
 
-Best-practice Docker logs (prevents disk fill):
+### 6.4 Install Docker Engine (Amazon Linux 2023)
+
+**Install Docker from official AL2023 repository:**
+
+```bash
+# Install Docker package
+sudo dnf -y install docker
+
+# Enable Docker service to start on boot
+sudo systemctl enable --now docker
+
+# Verify Docker is running
+sudo systemctl status docker
+
+# Add current user to docker group (avoid using sudo for docker commands)
+sudo usermod -aG docker ec2-user
+
+# Apply group changes (or logout/login)
+newgrp docker
+
+# Verify installation
+docker --version
+docker info
+```
+
+**Configure Docker logging** (prevents disk space exhaustion):
 
 ```bash
 sudo mkdir -p /etc/docker
+
+# Create daemon configuration with log rotation
 cat | sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
 {
   "log-driver": "json-file",
@@ -187,38 +253,90 @@ cat | sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
   }
 }
 EOF
+
+# Restart Docker to apply changes
 sudo systemctl restart docker
 ```
 
-### 6.5 Install Docker Compose v2
-
-Try the packaged plugin:
+**Verify Docker works without sudo:**
 
 ```bash
-sudo dnf -y install docker-compose-plugin || true
-
-docker compose version
+docker run --rm hello-world
 ```
 
-If not available, install the plugin manually:
+### 6.5 Install Docker Compose v2 (CLI Plugin)
+
+**Recommended Time:** 2-5 minutes
+
+Docker Compose v2 is a CLI plugin (not a standalone binary). The `docker compose` command is preferred over legacy `docker-compose`.
+
+**Method 1: Install from AL2023 repository** (preferred)
 
 ```bash
+# Install Docker Compose plugin package
+sudo dnf -y install docker-compose-plugin
+
+# Verify installation
+docker compose version
+# Expected output: Docker Compose version v2.x.x
+```
+
+**Method 2: Manual installation** (if package not available)
+
+```bash
+# Set desired version
 COMPOSE_VERSION="v2.27.0"
+
+# Create plugin directory
 DEST="$HOME/.docker/cli-plugins"
 mkdir -p "$DEST"
 
-curl -fL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64" -o "${DEST}/docker-compose"
+# Download and install plugin
+curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-$(uname -m)" \
+  -o "${DEST}/docker-compose"
+
+# Make executable
 chmod +x "${DEST}/docker-compose"
 
+# Verify installation
 docker compose version
 ```
 
-### 6.6 Clone repo
+**Troubleshooting:**
+
+- If `docker compose` command not found, ensure Docker CLI plugin path is correct: `~/.docker/cli-plugins/`
+- For system-wide installation, use: `/usr/local/lib/docker/cli-plugins/`
+
+### 6.6 Clone repository and prepare workspace
+
+**Recommended Time:** 1-2 minutes
 
 ```bash
-git clone <YOUR_REPO_URL>.git
+# Navigate to home directory
+cd ~
+
+# Clone the repository (replace with your actual repository URL)
+git clone https://github.com/<YOUR_USERNAME>/Python-DevOps.git
+
+# Enter project directory
 cd Python-DevOps
+
+# Verify project structure
+ls -la
+
+# Expected output should include:
+# - backend/
+# - frontend/
+# - k8s/
+# - docker-compose.yml
+# - Jenkinsfile
 ```
+
+**Notes:**
+
+- Replace `<YOUR_USERNAME>` with your actual GitHub username or organization
+- For private repositories, you may need to configure SSH keys or use a personal access token
+- Ensure Git is installed: `git --version`
 
 ### 6.7 Secrets handling (best practice)
 
@@ -256,26 +374,136 @@ PY
 Note:
 - `docker-compose.yml` currently uses inline env values. Refactor to `${VAR}` style if you want `.env` to actually drive Compose.
 
-### 6.8 Deploy
+### 6.8 Deploy application with Docker Compose
+
+**Recommended Time:** 3-5 minutes (depends on internet speed for image pulls)
+
+**Build and start all services:**
 
 ```bash
+# Build images and start containers in detached mode
 docker compose up -d --build
+
+# Expected output:
+# [+] Building ...  
+# [+] Running 4/4
+#  ✔ Network python-devops_default      Created
+#  ✔ Container python-devops-postgres-1 Started
+#  ✔ Container python-devops-backend-1  Started
+#  ✔ Container python-devops-frontend-1 Started
 ```
 
-Verify:
+**Verify all containers are running:**
 
 ```bash
+# Check container status
+docker compose ps
+
+# All containers should show "Up" status
+# Expected output:
+# NAME                          STATUS    PORTS
+# python-devops-backend-1       Up        0.0.0.0:8888->8888/tcp
+# python-devops-frontend-1      Up        0.0.0.0:80->80/tcp
+# python-devops-postgres-1      Up        0.0.0.0:5432->5432/tcp
+```
+
+**Verify application health:**
+
+```bash
+# Test frontend (should return HTML)
 curl -i http://localhost/
+
+# Test backend health endpoint (should return {"status": "healthy"})
 curl -i http://localhost/api/health
+
+# Test backend readiness (should return {"status": "ready"})
 curl -i http://localhost/api/ready
+
+# All should return HTTP/1.1 200 OK
 ```
 
-### 6.9 Update / redeploy
+**View application logs:**
 
 ```bash
+# View all service logs
+docker compose logs
+
+# Follow logs in real-time
+docker compose logs -f
+
+# View specific service logs
+docker compose logs backend
+docker compose logs postgres
+```
+
+**Troubleshooting:**
+
+- If backend container restarts repeatedly, check database connectivity: `docker compose logs backend`
+- If health checks return 404, verify Flask app is running: `docker compose exec backend ps aux`
+- If frontend shows nginx 502, check backend is responding: `curl -i http://localhost:8888/api/health`
+
+### 6.9 Update and redeploy application
+
+**Recommended Time:** 2-3 minutes
+
+When code changes are pushed to the repository, update and redeploy:
+
+**Standard update workflow:**
+
+```bash
+# Pull latest changes from repository
 git pull
 
+# Rebuild and restart containers with new code
 docker compose up -d --build
+
+# Docker Compose will:
+# 1. Detect changed services
+# 2. Rebuild only modified containers
+# 3. Restart affected services
+# 4. Keep database data intact (persistent volume)
+```
+
+**Verify deployment after update:**
+
+```bash
+# Check all containers are running
+docker compose ps
+
+# Verify health endpoints
+curl -i http://localhost/api/health
+
+# Check application logs for errors
+docker compose logs --tail=50 backend
+```
+
+**Force full rebuild (if needed):**
+
+```bash
+# Rebuild all images from scratch (no cache)
+docker compose build --no-cache
+
+# Restart all services
+docker compose up -d
+```
+
+**Zero-downtime updates (production):**
+
+For production environments, consider:
+- Using `docker compose up --wait --no-deps backend` to update one service at a time
+- Running multiple backend replicas with a load balancer
+- Implementing blue-green deployments with separate compose files
+
+**Database migrations:**
+
+If schema changes are included:
+
+```bash
+# Run migrations (example using Flask-Migrate)
+docker compose exec backend flask db upgrade
+
+# Or enter container shell
+docker compose exec backend bash
 ```
 
 ---
@@ -528,3 +756,4 @@ EKS:
 ```bash
 eksctl delete cluster --name taskmanager --region us-east-1
 ```
+
