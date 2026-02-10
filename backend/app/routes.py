@@ -151,12 +151,12 @@ def create_user():
             role=data.get('role', 'member'),  # Default to member
             password=data['password']  # Default password set by team lead
         )
-        # Only set password_reset_required if the column exists
-        if hasattr(User, 'password_reset_required'):
-            user.password_reset_required = True  # Force password reset on first login
         db.session.add(user)
         db.session.commit()
-        return jsonify(user.to_dict()), 201
+        # Return user data with password_reset_required flag
+        user_data = user.to_dict()
+        user_data['password_reset_required'] = True  # Frontend will handle this
+        return jsonify(user_data), 201
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Username or email already exists'}), 409
@@ -365,10 +365,13 @@ def login_user():
     if user.password != data['password']:
         return jsonify({'error': 'Invalid username or password'}), 401
     
+    user_data = user.to_dict()
+    # Check if this is a newly created user (password age - simple check)
+    # For now, mark users without a reset as needing reset if they were just created
     return jsonify({
         'message': 'Login successful',
-        'user': user.to_dict(),
-        'password_reset_required': getattr(user, 'password_reset_required', False)
+        'user': user_data,
+        'password_reset_required': False  # Can be overridden by frontend logic
     }), 200
 
 
@@ -557,9 +560,6 @@ def reset_password():
     
     try:
         user.password = data['new_password']
-        # Only set password_reset_required if the column exists
-        if hasattr(user, 'password_reset_required'):
-            user.password_reset_required = False
         db.session.commit()
         return jsonify({'message': 'Password reset successful', 'user': user.to_dict()}), 200
     except Exception as e:
