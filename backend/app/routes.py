@@ -149,9 +149,11 @@ def create_user():
             email=data['email'],
             full_name=data['full_name'],
             role=data.get('role', 'member'),  # Default to member
-            password=data['password'],  # Default password set by team lead
-            password_reset_required=True  # Force password reset on first login
+            password=data['password']  # Default password set by team lead
         )
+        # Only set password_reset_required if the column exists
+        if hasattr(User, 'password_reset_required'):
+            user.password_reset_required = True  # Force password reset on first login
         db.session.add(user)
         db.session.commit()
         return jsonify(user.to_dict()), 201
@@ -366,7 +368,7 @@ def login_user():
     return jsonify({
         'message': 'Login successful',
         'user': user.to_dict(),
-        'password_reset_required': user.password_reset_required
+        'password_reset_required': getattr(user, 'password_reset_required', False)
     }), 200
 
 
@@ -555,7 +557,9 @@ def reset_password():
     
     try:
         user.password = data['new_password']
-        user.password_reset_required = False
+        # Only set password_reset_required if the column exists
+        if hasattr(user, 'password_reset_required'):
+            user.password_reset_required = False
         db.session.commit()
         return jsonify({'message': 'Password reset successful', 'user': user.to_dict()}), 200
     except Exception as e:

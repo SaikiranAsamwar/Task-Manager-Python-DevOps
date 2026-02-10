@@ -31,7 +31,7 @@ class User(db.Model):
             'email': self.email,
             'full_name': self.full_name,
             'role': self.role,
-            'password_reset_required': self.password_reset_required,
+            'password_reset_required': getattr(self, 'password_reset_required', False),
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
