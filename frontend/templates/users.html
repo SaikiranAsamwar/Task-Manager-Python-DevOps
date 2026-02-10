@@ -70,6 +70,17 @@
               required
             />
           </div>
+          <div class="form-group">
+            <label for="password">Default Password:</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="Set initial password for user"
+              required
+              minlength="6"
+            />
+            <small style="color: #888; font-size: 0.85em; margin-top: 5px; display: block;">User will be required to reset this password on first login</small>
+          </div>
           <button type="submit" class="btn btn-primary">Create User</button>
         </form>
       </div>

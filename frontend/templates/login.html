@@ -312,6 +312,13 @@
             sessionStorage.setItem("userEmail", user.email);
             sessionStorage.setItem("userRole", user.role);
             sessionStorage.setItem("fullName", user.full_name);
+            sessionStorage.setItem("passwordResetRequired", data.password_reset_required ? "true" : "false");
+
+            // Check if password reset is required
+            if (data.password_reset_required) {
+              window.location.href = "/reset-password";
+              return;
+            }
 
             // Redirect based on role
             if (user.role === "lead") {

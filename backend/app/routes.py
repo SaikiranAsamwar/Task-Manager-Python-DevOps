@@ -111,6 +111,12 @@ def notifications():
     return render_template('notifications.html')
 
 
+@main_bp.route('/reset-password')
+def reset_password_page():
+    """Serve the password reset page"""
+    return render_template('reset-password.html')
+
+
 # API Routes - Users
 @api_bp.route('/users', methods=['GET'])
 def get_users():
@@ -130,19 +136,21 @@ def get_user(user_id):
 
 @api_bp.route('/users', methods=['POST'])
 def create_user():
-    """Create a new user"""
+    """Create a new user (Team Lead creates with default password)"""
     data = request.get_json()
     
     # Validate required fields
-    if not data or not all(k in data for k in ('username', 'email', 'full_name')):
-        return jsonify({'error': 'Missing required fields'}), 400
+    if not data or not all(k in data for k in ('username', 'email', 'full_name', 'password')):
+        return jsonify({'error': 'Missing required fields (username, email, full_name, password)'}), 400
     
     try:
         user = User(
             username=data['username'],
             email=data['email'],
             full_name=data['full_name'],
-            role=data.get('role', 'member')  # Default to member
+            role=data.get('role', 'member'),  # Default to member
+            password=data['password'],  # Default password set by team lead
+            password_reset_required=True  # Force password reset on first login
         )
         db.session.add(user)
         db.session.commit()
@@ -183,18 +191,26 @@ def update_user(user_id):
 
 @api_bp.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
-    """Delete a user"""
+    """Delete a user (cascade deletes tasks and notifications)"""
     user = User.query.get(user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
     try:
+        # Delete notifications related to this user
+        Notification.query.filter_by(user_id=user_id).delete()
+        
+        # Update or delete tasks where user is assigned
+        Task.query.filter_by(assigned_to=user_id).update({'assigned_to': None})
+        Task.query.filter_by(assigned_by=user_id).update({'assigned_by': None})
+        
+        # Now delete the user (cascade will handle tasks created by user)
         db.session.delete(user)
         db.session.commit()
         return jsonify({'message': 'User deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Failed to delete user: {str(e)}'}), 500
 
 
 # API Routes - Tasks
@@ -349,7 +365,8 @@ def login_user():
     
     return jsonify({
         'message': 'Login successful',
-        'user': user.to_dict()
+        'user': user.to_dict(),
+        'password_reset_required': user.password_reset_required
     }), 200
 
 
@@ -510,6 +527,37 @@ def mark_notification_read(notification_id):
         notification.read = True
         db.session.commit()
         return jsonify(notification.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# API Routes - Password Reset
+@api_bp.route('/auth/reset-password', methods=['POST'])
+def reset_password():
+    """Reset user password"""
+    data = request.get_json()
+    
+    if not data or not all(k in data for k in ('user_id', 'old_password', 'new_password')):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    user = User.query.get(data['user_id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Verify old password
+    if user.password != data['old_password']:
+        return jsonify({'error': 'Old password is incorrect'}), 401
+    
+    # Validate new password
+    if len(data['new_password']) < 6:
+        return jsonify({'error': 'New password must be at least 6 characters'}), 400
+    
+    try:
+        user.password = data['new_password']
+        user.password_reset_required = False
+        db.session.commit()
+        return jsonify({'message': 'Password reset successful', 'user': user.to_dict()}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

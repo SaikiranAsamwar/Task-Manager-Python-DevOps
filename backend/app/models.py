@@ -11,6 +11,7 @@ class User(db.Model):
     full_name = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), default='member', nullable=False)  # 'lead' or 'member'
     password = db.Column(db.String(200), nullable=True)  # For authentication
+    password_reset_required = db.Column(db.Boolean, default=False, nullable=False)  # Force password reset on first login
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -30,6 +31,7 @@ class User(db.Model):
             'email': self.email,
             'full_name': self.full_name,
             'role': self.role,
+            'password_reset_required': self.password_reset_required,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }

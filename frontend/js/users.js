@@ -88,10 +88,17 @@ async function createUser() {
     const username = usernameInput.value.trim();
     const email = emailInput.value.trim();
     const fullName = fullNameInput.value.trim();
+    const passwordInput = document.getElementById('password');
+    const password = passwordInput ? passwordInput.value.trim() : '';
 
     // Validate
-    if (!username || !email || !fullName) {
+    if (!username || !email || !fullName || !password) {
         showMessage('Please fill in all fields', 'error');
+        return;
+    }
+
+    if (password.length < 6) {
+        showMessage('Password must be at least 6 characters', 'error');
         return;
     }
 
@@ -109,7 +116,9 @@ async function createUser() {
             body: JSON.stringify({
                 username,
                 email,
-                full_name: fullName
+                full_name: fullName,
+                password,
+                role: 'member'
             })
         });
 
