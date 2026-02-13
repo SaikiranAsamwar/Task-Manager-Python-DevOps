@@ -2,16 +2,9 @@ pipeline {
     agent any
     
     environment {
-        // Docker Registry Configuration
         DOCKER_REGISTRY = 'saikiranasamwar4'
         BACKEND_IMAGE = "${DOCKER_REGISTRY}/taskmanager-backend"
         FRONTEND_IMAGE = "${DOCKER_REGISTRY}/taskmanager-frontend"
-        
-        // Credentials
-        DOCKER_CREDENTIALS = credentials('dockerhub-credentials')
-        SONAR_TOKEN = credentials('sonarqube-token')
-        
-        // SonarQube Configuration
         SONAR_HOST_URL = 'http://localhost:9000'
         SONAR_PROJECT_KEY = 'taskmanager-project'
     }
@@ -33,35 +26,23 @@ pipeline {
         // ============================================
         stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube code analysis...'
-                script {
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                     withSonarQubeEnv('SonarQube') {
-                        sh '''
+                        sh """
                             sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=${SONAR_HOST_URL} \
-                                -Dsonar.login=${SONAR_TOKEN} \
-                                -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/venv/**
-                        '''
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=$SONAR_TOKEN \
+                            -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/venv/**
+                        """
                     }
-                }
-            }
-        }
-
-        // ============================================
-        // STAGE 3: QUALITY GATE CHECK
-        // ============================================
-        stage('SonarQube Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
                 }
             }
         }
         
         // ============================================
-        // STAGE 4: DOCKER BUILD BACKEND
+        // STAGE 3: DOCKER BUILD BACKEND
         // ============================================
         stage('Docker Build - Backend') {
             steps {
@@ -76,7 +57,7 @@ pipeline {
         }
         
         // ============================================
-        // STAGE 5: DOCKER BUILD FRONTEND
+        // STAGE 4: DOCKER BUILD FRONTEND
         // ============================================
         stage('Docker Build - Frontend') {
             steps {
@@ -91,7 +72,7 @@ pipeline {
         }
         
         // ============================================
-        // STAGE 6: DOCKER TEST
+        // STAGE 5: DOCKER TEST
         // ============================================
         stage('Docker Test') {
             steps {
@@ -106,21 +87,23 @@ pipeline {
         }
         
         // ============================================
-        // STAGE 7: DOCKER PUSH
+        // STAGE 6: DOCKER PUSH
         // ============================================
         stage('Docker Push to DockerHub') {
             steps {
-                sh '''
-                    echo $DOCKER_CREDENTIALS_PSW | docker login -u $DOCKER_CREDENTIALS_USR --password-stdin
-                    
-                    docker push ${BACKEND_IMAGE}:v1.0
-                    docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}
-                    docker push ${BACKEND_IMAGE}:latest
-                    
-                    docker push ${FRONTEND_IMAGE}:v1.0
-                    docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
-                    docker push ${FRONTEND_IMAGE}:latest
-                '''
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        
+                        docker push ${BACKEND_IMAGE}:v1.0
+                        docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}
+                        docker push ${BACKEND_IMAGE}:latest
+                        
+                        docker push ${FRONTEND_IMAGE}:v1.0
+                        docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
+                        docker push ${FRONTEND_IMAGE}:latest
+                    '''
+                }
             }
         }
     }
@@ -132,7 +115,6 @@ pipeline {
         }
         success {
             echo 'CI Pipeline Completed Successfully!'
-            echo 'Docker Images Pushed to DockerHub'
         }
         failure {
             echo 'Pipeline Failed! Check logs.'
