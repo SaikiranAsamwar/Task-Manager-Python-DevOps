@@ -487,37 +487,249 @@ kubectl get svc -n taskmanager
 ---
 
 
+---
 
-## 10. SonarQube Installation and Setup
+# 🔟 10. SonarQube Installation, Setup & Jenkins Integration (EC2 Based – Non Docker)
+
+---
+
+## 🖥️ 10.1 Install Required Dependencies
+
+SonarQube will be installed on the same **Master EC2 Instance** where Jenkins is running.
 
 ```bash
-# Configure system limits for SonarQube
-sudo tee -a /etc/sysctl.conf << EOF
-vm.max_map_count=524288
-fs.file-max=131072
-EOF
-sudo sysctl -p
+sudo dnf update -y
+sudo dnf install unzip wget java-17-amazon-corretto -y
+```
 
-# Create directories and run SonarQube
-mkdir -p ~/sonarqube/{data,logs,extensions}
-chmod 777 ~/sonarqube/{data,logs,extensions}
+Verify Java:
 
-docker run -d \
-  --name sonarqube \
-  --restart=unless-stopped \
-  -p 9000:9000 \
-  -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
-  -v ~/sonarqube/data:/opt/sonarqube/data \
-  -v ~/sonarqube/logs:/opt/sonarqube/logs \
-  -v ~/sonarqube/extensions:/opt/sonarqube/extensions \
-  sonarqube:lts-community
-
-# Access via SSH tunnel: ssh -i key.pem -L 9000:localhost:9000 ec2-user@<EC2_IP>
-# Login at http://localhost:9000 (admin/admin), create project, generate token
-# Configure in Jenkins: Manage Jenkins → Tools → Add SonarQube Scanner
+```bash
+java -version
 ```
 
 ---
+
+## 👤 10.2 Create SonarQube System User
+
+```bash
+sudo useradd -r -M -d /opt/sonarqube -s /bin/bash sonar
+```
+
+---
+
+## 📥 10.3 Download and Install SonarQube
+
+```bash
+cd /opt
+sudo wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-10.4.1.88267.zip
+sudo unzip sonarqube-10.4.1.88267.zip
+sudo mv sonarqube-10.4.1.88267 sonarqube
+```
+
+Set ownership:
+
+```bash
+sudo chown -R sonar:sonar /opt/sonarqube
+```
+
+---
+
+## ⚠️ 10.4 Configure Linux Kernel Settings (Mandatory)
+
+SonarQube requires memory map and file descriptor tuning.
+
+```bash
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+```bash
+echo "sonar   -   nofile   65536" | sudo tee -a /etc/security/limits.conf
+echo "sonar   -   nproc    4096" | sudo tee -a /etc/security/limits.conf
+```
+
+---
+
+## 🔧 10.5 Create SonarQube Service
+
+```bash
+sudo nano /etc/systemd/system/sonarqube.service
+```
+
+Paste the following:
+
+```ini
+[Unit]
+Description=SonarQube Service
+After=syslog.target network.target
+
+[Service]
+Type=forking
+ExecStart=/opt/sonarqube/bin/linux-x86-64/sonar.sh start
+ExecStop=/opt/sonarqube/bin/linux-x86-64/sonar.sh stop
+User=sonar
+Group=sonar
+Restart=always
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
+```
+
+---
+
+## ▶️ 10.6 Start SonarQube Service
+
+Reload daemon:
+
+```bash
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+```
+
+Start SonarQube:
+
+```bash
+sudo systemctl start sonarqube
+```
+
+Enable on boot:
+
+```bash
+sudo systemctl enable sonarqube
+```
+
+---
+
+## ✅ 10.7 Verify SonarQube Status
+
+Wait 1–2 minutes for SonarQube to boot.
+
+Check service:
+
+```bash
+sudo systemctl status sonarqube
+```
+
+Check API health:
+
+```bash
+curl http://localhost:9000/api/system/status
+```
+
+Expected:
+
+```json
+{"status":"UP"}
+```
+
+---
+
+## 🌐 10.8 Access SonarQube Dashboard
+
+Open in browser:
+
+```
+http://<EC2_PUBLIC_IP>:9000
+```
+
+Login:
+
+```
+Username: admin
+Password: admin
+```
+
+Change password after first login.
+
+---
+
+## 🔐 10.9 Create Project & Generate Token
+
+1. Click **Create Project**
+2. Select **Manual**
+3. Enter Project Name
+4. Click **Setup**
+5. Select **Locally**
+6. Generate Project Token
+7. Copy the Token (Required for Jenkins)
+
+---
+
+---
+
+# 🔗 10.10 Configure SonarQube in Jenkins
+
+---
+
+### ➤ Add SonarQube Token in Jenkins
+
+Navigate:
+
+```
+Manage Jenkins → Manage Credentials → Global → Add Credentials
+```
+
+| Field  | Value           |
+| ------ | --------------- |
+| Kind   | Secret Text     |
+| ID     | sonarqube-token |
+| Secret | Generated Token |
+
+---
+
+---
+
+### ➤ Configure SonarQube Server
+
+Navigate:
+
+```
+Manage Jenkins → Configure System
+```
+
+Add SonarQube Server:
+
+| Field      | Value                                          |
+| ---------- | ---------------------------------------------- |
+| Name       | SonarQube                                      |
+| Server URL | [http://localhost:9000](http://localhost:9000) |
+| Token      | sonarqube-token                                |
+
+Click **Save**
+
+---
+
+---
+
+### ➤ Install SonarQube Scanner in Jenkins
+
+Navigate:
+
+```
+Manage Jenkins → Global Tool Configuration
+```
+
+Under:
+
+```
+SonarQube Scanner
+```
+
+Add:
+
+| Field                 | Value        |
+| --------------------- | ------------ |
+| Name                  | SonarScanner |
+| Install Automatically | ✓            |
+
+Click **Save**
+
+---
+
+
 
 ## 11. Prometheus and Grafana Installation
 
