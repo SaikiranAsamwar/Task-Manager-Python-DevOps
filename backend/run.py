@@ -2,10 +2,14 @@
 Main entry point for the Flask application
 """
 
+from flask import Flask
 from app import create_app, db
 import os
 
 app = create_app()
+
+# 🔥 Tell Flask where templates actually are
+app.template_folder = 'app/templates'
 
 with app.app_context():
     db.create_all()
