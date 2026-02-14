@@ -148,6 +148,10 @@ pipeline {
                         kubectl delete pods --field-selector=status.phase=Failed -n taskmanager 2>/dev/null || true
                         kubectl delete pods --field-selector=status.phase=Unknown -n taskmanager 2>/dev/null || true
 
+                        # Replace image tags in manifests with current build number (avoids double rollout)
+                        sed -i "s|saikiranasamwar4/taskmanager-backend:v1.0|saikiranasamwar4/taskmanager-backend:${BUILD_NUMBER}|g" k8s/backend-deployment.yaml
+                        sed -i "s|saikiranasamwar4/taskmanager-frontend:v1.0|saikiranasamwar4/taskmanager-frontend:${BUILD_NUMBER}|g" k8s/frontend-deployment.yaml
+
                         # Apply secrets
                         kubectl apply -f k8s/secrets.yaml
 
@@ -159,24 +163,23 @@ pipeline {
                         echo "Waiting for PostgreSQL to be ready..."
                         kubectl rollout status deployment/postgres -n taskmanager --timeout=300s
 
-                        # Deploy Backend and Frontend
+                        # Deploy Backend and Frontend with correct image tags
                         kubectl apply -f k8s/backend-deployment.yaml
                         kubectl apply -f k8s/frontend-deployment.yaml
-
-                        # Update image tags to current build number
-                        kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${BUILD_NUMBER} -n taskmanager
-                        kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${BUILD_NUMBER} -n taskmanager
 
                         # Apply Ingress
                         kubectl apply -f k8s/ingress.yaml
 
                         # Wait for rollouts to complete
+                        echo "Waiting for Backend rollout..."
                         kubectl rollout status deployment/backend -n taskmanager --timeout=180s
+
+                        echo "Waiting for Frontend rollout..."
                         kubectl rollout status deployment/frontend -n taskmanager --timeout=180s
 
                         echo "EKS Deployment Successful!"
                         echo "=== Pod Status ==="
-                        kubectl get pods -n taskmanager
+                        kubectl get pods -n taskmanager -o wide
                         echo "=== Service Status ==="
                         kubectl get svc -n taskmanager
                     '''
