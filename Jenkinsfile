@@ -139,7 +139,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     sh '''
                         # Configure kubectl for EKS cluster
-                        aws eks update-kubeconfig --name taskmanager-cluster --region us-east-1
+                        aws eks update-kubeconfig --name taskmanager-eks --region us-east-1
 
                         # Create namespace if it doesn't exist
                         kubectl apply -f k8s/namespace.yaml
