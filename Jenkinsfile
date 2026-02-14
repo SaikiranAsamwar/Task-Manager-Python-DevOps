@@ -130,6 +130,54 @@ pipeline {
                 }
             }
         }
+
+        // ============================================
+        // STAGE 8: DEPLOY TO EKS
+        // ============================================
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    sh '''
+                        # Configure kubectl for EKS cluster
+                        aws eks update-kubeconfig --name taskmanager-cluster --region us-east-1
+
+                        # Create namespace if it doesn't exist
+                        kubectl apply -f k8s/namespace.yaml
+
+                        # Apply secrets
+                        kubectl apply -f k8s/secrets.yaml
+
+                        # Deploy PostgreSQL (PVC + Deployment + Service)
+                        kubectl apply -f k8s/postgres-pvc.yaml
+                        kubectl apply -f k8s/postgres-deployment.yaml
+
+                        # Wait for PostgreSQL to be ready
+                        kubectl rollout status deployment/postgres -n taskmanager --timeout=120s
+
+                        # Update image tags in deployments to current build
+                        kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${BUILD_NUMBER} -n taskmanager || true
+                        kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${BUILD_NUMBER} -n taskmanager || true
+
+                        # Deploy Backend and Frontend
+                        kubectl apply -f k8s/backend-deployment.yaml
+                        kubectl apply -f k8s/frontend-deployment.yaml
+
+                        # Apply Ingress
+                        kubectl apply -f k8s/ingress.yaml
+
+                        # Wait for rollouts to complete
+                        kubectl rollout status deployment/backend -n taskmanager --timeout=180s
+                        kubectl rollout status deployment/frontend -n taskmanager --timeout=180s
+
+                        echo "EKS Deployment Successful!"
+                        echo "=== Pod Status ==="
+                        kubectl get pods -n taskmanager
+                        echo "=== Service Status ==="
+                        kubectl get svc -n taskmanager
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -138,7 +186,7 @@ pipeline {
             cleanWs()
         }
         success {
-            echo 'CI Pipeline Completed Successfully!'
+            echo 'CI/CD Pipeline Completed Successfully!'
         }
         failure {
             echo 'Pipeline Failed! Check logs.'
