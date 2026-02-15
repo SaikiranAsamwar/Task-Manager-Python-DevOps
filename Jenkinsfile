@@ -193,6 +193,7 @@ pipeline {
 
                         # Deploy Monitoring Stack
                         echo "Deploying Monitoring..."
+                        kubectl create namespace monitoring || true
                         kubectl apply -f monitoring/prometheus-rbac.yaml
                         kubectl apply -f monitoring/prometheus-config.yaml
                         kubectl apply -f monitoring/prometheus-deployment.yaml

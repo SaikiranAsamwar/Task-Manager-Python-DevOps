@@ -743,7 +743,13 @@ kubectl apply -f monitoring/prometheus-config.yaml
 kubectl apply -f monitoring/prometheus-deployment.yaml
 kubectl wait --for=condition=available --timeout=300s deployment/prometheus -n monitoring
 
-# Access Prometheus: kubectl port-forward -n monitoring svc/prometheus 9090:9090
+# Deploy Node Exporter (collects CPU, memory, disk metrics from each node)
+kubectl apply -f monitoring/node-exporter.yaml
+kubectl rollout status daemonset/node-exporter -n monitoring --timeout=120s
+
+# Deploy Kube State Metrics (collects pod, deployment, PVC status metrics)
+kubectl apply -f monitoring/kube-state-metrics.yaml
+kubectl rollout status deployment/kube-state-metrics -n monitoring --timeout=120s
 
 # Deploy Grafana
 kubectl apply -f monitoring/grafana-datasource.yaml
@@ -751,11 +757,12 @@ kubectl apply -f monitoring/grafana-dashboard-config.yaml
 kubectl apply -f monitoring/grafana-deployment.yaml
 kubectl wait --for=condition=available --timeout=300s deployment/grafana -n monitoring
 
+# Access Prometheus: kubectl port-forward -n monitoring svc/prometheus 9090:9090
 # Access Grafana: kubectl port-forward -n monitoring svc/grafana 3000:3000
 # Login at http://localhost:3000 (admin/admin123) - change password after first login
 # Import dashboards: Dashboards → Import → Use IDs: 315, 8588, 6417, 1860
 
-# Verify
+# Verify all monitoring pods
 kubectl get pods -n monitoring
 kubectl get svc -n monitoring
 ```
@@ -849,6 +856,8 @@ kubectl delete -f k8s/namespace.yaml
 kubectl delete -f monitoring/grafana-deployment.yaml
 kubectl delete -f monitoring/grafana-dashboard-config.yaml
 kubectl delete -f monitoring/grafana-datasource.yaml
+kubectl delete -f monitoring/kube-state-metrics.yaml
+kubectl delete -f monitoring/node-exporter.yaml
 kubectl delete -f monitoring/prometheus-deployment.yaml
 kubectl delete -f monitoring/prometheus-config.yaml
 kubectl delete -f monitoring/prometheus-rbac.yaml
