@@ -734,37 +734,33 @@ Click **Save**
 ## 11. Prometheus and Grafana Installation
 
 ```bash
-# Create monitoring namespace
-kubectl create namespace monitoring
+# Install Helm (one-time setup on Jenkins/EC2)
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Deploy Prometheus
-kubectl apply -f monitoring/prometheus-rbac.yaml
-kubectl apply -f monitoring/prometheus-config.yaml
-kubectl apply -f monitoring/prometheus-deployment.yaml
-kubectl wait --for=condition=available --timeout=300s deployment/prometheus -n monitoring
+# Add Prometheus community Helm repo
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
 
-# Deploy Node Exporter (collects CPU, memory, disk metrics from each node)
-kubectl apply -f monitoring/node-exporter.yaml
-kubectl rollout status daemonset/node-exporter -n monitoring --timeout=120s
-
-# Deploy Kube State Metrics (collects pod, deployment, PVC status metrics)
-kubectl apply -f monitoring/kube-state-metrics.yaml
-kubectl rollout status deployment/kube-state-metrics -n monitoring --timeout=120s
-
-# Deploy Grafana
-kubectl apply -f monitoring/grafana-datasource.yaml
-kubectl apply -f monitoring/grafana-dashboard-config.yaml
-kubectl apply -f monitoring/grafana-deployment.yaml
-kubectl wait --for=condition=available --timeout=300s deployment/grafana -n monitoring
-
-# Access Prometheus: kubectl port-forward -n monitoring svc/prometheus 9090:9090
-# Access Grafana: kubectl port-forward -n monitoring svc/grafana 3000:3000
-# Login at http://localhost:3000 (admin/admin123) - change password after first login
-# Import dashboards: Dashboards → Import → Use IDs: 315, 8588, 6417, 1860
+# Install the full monitoring stack (Prometheus + Grafana + Node Exporter + Kube State Metrics)
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace \
+  --set grafana.service.type=LoadBalancer \
+  --set prometheus.service.type=LoadBalancer \
+  --set grafana.adminPassword=admin123 \
+  --set grafana.persistence.enabled=true \
+  --set grafana.persistence.storageClassName=gp2 \
+  --set grafana.persistence.size=5Gi \
+  --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \
+  --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=10Gi
 
 # Verify all monitoring pods
 kubectl get pods -n monitoring
 kubectl get svc -n monitoring
+
+# Access dashboards via LoadBalancer URLs:
+# Prometheus: http://<PROMETHEUS-ELB-URL>:9090
+# Grafana: http://<GRAFANA-ELB-URL>:3000 (admin/admin123)
+# Import dashboards: Dashboards → Import → Use IDs: 315, 8588, 6417, 1860
 ```
 
 ---
@@ -853,14 +849,7 @@ kubectl delete -f k8s/secrets.yaml
 kubectl delete -f k8s/namespace.yaml
 
 # Delete monitoring stack
-kubectl delete -f monitoring/grafana-deployment.yaml
-kubectl delete -f monitoring/grafana-dashboard-config.yaml
-kubectl delete -f monitoring/grafana-datasource.yaml
-kubectl delete -f monitoring/kube-state-metrics.yaml
-kubectl delete -f monitoring/node-exporter.yaml
-kubectl delete -f monitoring/prometheus-deployment.yaml
-kubectl delete -f monitoring/prometheus-config.yaml
-kubectl delete -f monitoring/prometheus-rbac.yaml
+helm uninstall monitoring -n monitoring
 kubectl delete namespace monitoring
 
 # Delete EKS cluster

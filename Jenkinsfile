@@ -191,29 +191,23 @@ pipeline {
                         kubectl get pods -n taskmanager -o wide
                         kubectl get svc -n taskmanager
 
-                        # Deploy Monitoring Stack
-                        echo "Deploying Monitoring..."
-                        kubectl create namespace monitoring || true
-                        kubectl apply -f monitoring/prometheus-rbac.yaml
-                        kubectl apply -f monitoring/prometheus-config.yaml
-                        kubectl apply -f monitoring/prometheus-deployment.yaml
-                        kubectl apply -f monitoring/node-exporter.yaml
-                        kubectl apply -f monitoring/kube-state-metrics.yaml
-                        kubectl apply -f monitoring/grafana-datasource.yaml
-                        kubectl apply -f monitoring/grafana-dashboard-config.yaml
-                        kubectl apply -f monitoring/grafana-deployment.yaml
+                        # Deploy Monitoring Stack using Helm
+                        echo "Deploying Monitoring with Helm..."
+                        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
+                        helm repo update
 
-                        echo "Waiting for Prometheus..."
-                        kubectl rollout status deployment/prometheus -n monitoring --timeout=120s || true
-
-                        echo "Waiting for Kube State Metrics..."
-                        kubectl rollout status deployment/kube-state-metrics -n monitoring --timeout=120s || true
-
-                        echo "Waiting for Node Exporter..."
-                        kubectl rollout status daemonset/node-exporter -n monitoring --timeout=120s || true
-
-                        echo "Waiting for Grafana..."
-                        kubectl rollout status deployment/grafana -n monitoring --timeout=120s || true
+                        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+                          --namespace monitoring --create-namespace \
+                          --set grafana.service.type=LoadBalancer \
+                          --set prometheus.prometheusSpec.service.type=LoadBalancer \
+                          --set prometheus.service.type=LoadBalancer \
+                          --set grafana.adminPassword=admin123 \
+                          --set grafana.persistence.enabled=true \
+                          --set grafana.persistence.storageClassName=gp2 \
+                          --set grafana.persistence.size=5Gi \
+                          --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \
+                          --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=10Gi \
+                          --wait --timeout=300s || true
 
                         echo "=== Monitoring Status ==="
                         kubectl get pods -n monitoring -o wide
