@@ -190,6 +190,25 @@ pipeline {
                         echo "Deployment Successful!"
                         kubectl get pods -n taskmanager -o wide
                         kubectl get svc -n taskmanager
+
+                        # Deploy Monitoring (Prometheus + Grafana)
+                        echo "Deploying Monitoring..."
+                        kubectl apply -f monitoring/prometheus-rbac.yaml
+                        kubectl apply -f monitoring/prometheus-config.yaml
+                        kubectl apply -f monitoring/prometheus-deployment.yaml
+                        kubectl apply -f monitoring/grafana-datasource.yaml
+                        kubectl apply -f monitoring/grafana-dashboard-config.yaml
+                        kubectl apply -f monitoring/grafana-deployment.yaml
+
+                        echo "Waiting for Prometheus..."
+                        kubectl rollout status deployment/prometheus -n monitoring --timeout=120s || true
+
+                        echo "Waiting for Grafana..."
+                        kubectl rollout status deployment/grafana -n monitoring --timeout=120s || true
+
+                        echo "=== Monitoring Status ==="
+                        kubectl get pods -n monitoring -o wide
+                        kubectl get svc -n monitoring
                     '''
                 }
             }
