@@ -171,10 +171,21 @@ pipeline {
 
                         # Wait for app rollouts
                         echo "Waiting for Backend..."
-                        kubectl rollout status deployment/backend -n taskmanager --timeout=300s
+                        kubectl rollout status deployment/backend -n taskmanager --timeout=300s || {
+                            echo "=== Backend Debug ==="
+                            kubectl get pods -n taskmanager -l app=backend -o wide
+                            kubectl describe pods -n taskmanager -l app=backend | tail -40
+                            kubectl logs -n taskmanager -l app=backend --tail=20 || true
+                            exit 1
+                        }
 
                         echo "Waiting for Frontend..."
-                        kubectl rollout status deployment/frontend -n taskmanager --timeout=180s
+                        kubectl rollout status deployment/frontend -n taskmanager --timeout=300s || {
+                            echo "=== Frontend Debug ==="
+                            kubectl get pods -n taskmanager -l app=frontend -o wide
+                            kubectl describe pods -n taskmanager -l app=frontend | tail -40
+                            exit 1
+                        }
 
                         echo "Deployment Successful!"
                         kubectl get pods -n taskmanager -o wide
