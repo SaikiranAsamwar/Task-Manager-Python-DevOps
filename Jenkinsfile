@@ -138,49 +138,46 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     sh '''
-                        # Configure kubectl for EKS cluster
+                        # Configure kubectl
                         aws eks update-kubeconfig --name taskmanager-eks --region us-east-1
 
-                        # Create namespace if it doesn't exist
+                        # Setup namespace
                         kubectl apply -f k8s/namespace.yaml
 
-                        # Clean up any stuck pods from previous failed deployments
+                        # Clean stuck pods
                         kubectl delete pods --field-selector=status.phase=Failed -n taskmanager 2>/dev/null || true
                         kubectl delete pods --field-selector=status.phase=Unknown -n taskmanager 2>/dev/null || true
 
-                        # Replace image tags in manifests with current build number (avoids double rollout)
+                        # Update image tags to current build
                         sed -i "s|saikiranasamwar4/taskmanager-backend:v1.0|saikiranasamwar4/taskmanager-backend:${BUILD_NUMBER}|g" k8s/backend-deployment.yaml
                         sed -i "s|saikiranasamwar4/taskmanager-frontend:v1.0|saikiranasamwar4/taskmanager-frontend:${BUILD_NUMBER}|g" k8s/frontend-deployment.yaml
 
-                        # Apply secrets
-                        kubectl apply -f k8s/secrets.yaml
+                        # Install EBS CSI Driver if missing (needed for PVC)
+                        aws eks create-addon --cluster-name taskmanager-eks --addon-name aws-ebs-csi-driver --region us-east-1 2>/dev/null || true
 
-                        # Deploy PostgreSQL (PVC + Deployment + Service)
+                        # Deploy everything
+                        kubectl apply -f k8s/secrets.yaml
                         kubectl apply -f k8s/postgres-pvc.yaml
                         kubectl apply -f k8s/postgres-deployment.yaml
 
-                        # Wait for PostgreSQL to be ready
-                        echo "Waiting for PostgreSQL to be ready..."
+                        # Wait for PostgreSQL
+                        echo "Waiting for PostgreSQL..."
                         kubectl rollout status deployment/postgres -n taskmanager --timeout=300s
 
-                        # Deploy Backend and Frontend with correct image tags
+                        # Deploy app
                         kubectl apply -f k8s/backend-deployment.yaml
                         kubectl apply -f k8s/frontend-deployment.yaml
-
-                        # Apply Ingress
                         kubectl apply -f k8s/ingress.yaml
 
-                        # Wait for rollouts to complete
-                        echo "Waiting for Backend rollout..."
+                        # Wait for app rollouts
+                        echo "Waiting for Backend..."
                         kubectl rollout status deployment/backend -n taskmanager --timeout=300s
 
-                        echo "Waiting for Frontend rollout..."
+                        echo "Waiting for Frontend..."
                         kubectl rollout status deployment/frontend -n taskmanager --timeout=180s
 
-                        echo "EKS Deployment Successful!"
-                        echo "=== Pod Status ==="
+                        echo "Deployment Successful!"
                         kubectl get pods -n taskmanager -o wide
-                        echo "=== Service Status ==="
                         kubectl get svc -n taskmanager
                     '''
                 }
