@@ -51,6 +51,18 @@ data:
             replacement: $1:$2
             target_label: __address__
 
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: node-exporter
+
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics.monitoring.svc.cluster.local:8080']
+
       - job_name: 'taskmanager-backend'
         static_configs:
           - targets: ['backend.taskmanager.svc.cluster.local:8888']

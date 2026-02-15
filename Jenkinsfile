@@ -191,17 +191,25 @@ pipeline {
                         kubectl get pods -n taskmanager -o wide
                         kubectl get svc -n taskmanager
 
-                        # Deploy Monitoring (Prometheus + Grafana)
+                        # Deploy Monitoring Stack
                         echo "Deploying Monitoring..."
                         kubectl apply -f monitoring/prometheus-rbac.yaml
                         kubectl apply -f monitoring/prometheus-config.yaml
                         kubectl apply -f monitoring/prometheus-deployment.yaml
+                        kubectl apply -f monitoring/node-exporter.yaml
+                        kubectl apply -f monitoring/kube-state-metrics.yaml
                         kubectl apply -f monitoring/grafana-datasource.yaml
                         kubectl apply -f monitoring/grafana-dashboard-config.yaml
                         kubectl apply -f monitoring/grafana-deployment.yaml
 
                         echo "Waiting for Prometheus..."
                         kubectl rollout status deployment/prometheus -n monitoring --timeout=120s || true
+
+                        echo "Waiting for Kube State Metrics..."
+                        kubectl rollout status deployment/kube-state-metrics -n monitoring --timeout=120s || true
+
+                        echo "Waiting for Node Exporter..."
+                        kubectl rollout status daemonset/node-exporter -n monitoring --timeout=120s || true
 
                         echo "Waiting for Grafana..."
                         kubectl rollout status deployment/grafana -n monitoring --timeout=120s || true
