@@ -172,7 +172,7 @@ pipeline {
 
                         # Wait for rollouts to complete
                         echo "Waiting for Backend rollout..."
-                        kubectl rollout status deployment/backend -n taskmanager --timeout=180s
+                        kubectl rollout status deployment/backend -n taskmanager --timeout=300s
 
                         echo "Waiting for Frontend rollout..."
                         kubectl rollout status deployment/frontend -n taskmanager --timeout=180s
